@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishGuard AI — Research Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Variables ─────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #050810;
+      --surface:   #0D1117;
+      --surface2:  #161B22;
+      --border:    #21262D;
+      --text:      #E6EDF3;
+      --muted:     #8B949E;
+      --accent:    #58A6FF;
+      --green:     #3FB950;
+      --red:       #F85149;
+      --orange:    #D29922;
+      --purple:    #BC8CFF;
+      --mono:      'Space Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid noise texture overlay ─────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(88,166,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(88,166,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Navigation ─────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(5, 8, 16, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 48px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo span { color: var(--muted); font-weight: 400; }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+
+    /* ── Main layout ─────────────────────────────────────────────────── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 48px 80px;
+    }
+
+    /* ── Hero ────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 80px 0 64px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 80px;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid rgba(88,166,255,0.25);
+      padding: 4px 10px;
+      border-radius: 3px;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-family: var(--mono);
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 .highlight { color: var(--accent); }
+
+    .hero p {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.green { color: var(--green); }
+    .stat-value.accent { color: var(--accent); }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Section headers ─────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 80px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    .section-header h2 {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .section-header p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: auto;
+      max-width: 300px;
+      text-align: right;
+    }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* ── Model comparison table ──────────────────────────────────────── */
+    .model-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .model-table th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 16px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .model-table th:first-child { text-align: left; }
+
+    .model-table td {
+      padding: 10px 16px;
+      text-align: right;
+      border-bottom: 1px solid rgba(33,38,45,0.5);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .model-table td:first-child {
+      text-align: left;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .model-table tr.champion {
+      background: rgba(88,166,255,0.06);
+    }
+
+    .model-table tr.champion td:first-child::before {
+      content: '★ ';
+      color: var(--accent);
+      font-size: 10px;
+    }
+
+    .model-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      margin-left: 6px;
+    }
+
+    .badge-classical { background: rgba(139,148,158,0.15); color: var(--muted); }
+    .badge-dl        { background: rgba(88,166,255,0.15);  color: var(--accent); }
+    .badge-dann      { background: rgba(188,140,255,0.15); color: var(--purple); }
+    .badge-hybrid    { background: rgba(63,185,80,0.15);   color: var(--green); }
+
+    .score-cell { font-weight: 700; color: var(--green); }
+    .na-cell    { color: var(--border); }
+
+    /* ── Charts grid ─────────────────────────────────────────────────── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .chart-wrap canvas { max-height: 280px; }
+
+    .chart-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* ── Live demo ────────────────────────────────────────────────────── */
+    .demo-input-wrap {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .demo-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .demo-input:focus { border-color: var(--accent); }
+    .demo-input::placeholder { color: var(--muted); }
+
+    .demo-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .demo-btn:hover { opacity: 0.85; }
+    .demo-btn:active { transform: scale(0.98); }
+    .demo-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .status-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.offline { background: var(--red); }
+
+    /* Demo result */
+    .demo-result {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .demo-result.visible { display: block; animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .result-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-verdict {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .result-verdict.safe    { color: var(--green); }
+    .result-verdict.low     { color: var(--accent); }
+    .result-verdict.medium  { color: var(--orange); }
+    .result-verdict.high    { color: var(--red); }
+
+    .result-url {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: auto;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-body { padding: 20px; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .result-metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .result-metric .label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+
+    .result-metric .value {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .risk-bar-wrap {
+      background: var(--surface);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .risk-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+    }
+
+    .risk-bar.safe   { background: var(--green); }
+    .risk-bar.low    { background: var(--accent); }
+    .risk-bar.medium { background: var(--orange); }
+    .risk-bar.high   { background: var(--red); }
+
+    /* Threats */
+    .threats-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+    .threat-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(248,81,73,0.06);
+      border-radius: 6px;
+      border-left: 3px solid var(--red);
+      font-size: 13px;
+    }
+
+    .threat-row.safe-row { background: rgba(63,185,80,0.06); border-color: var(--green); }
+
+    .threat-type {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--red);
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    .threat-note { color: var(--muted); font-size: 12px; }
+
+    /* Attention bar */
+    .attention-section { margin-top: 16px; }
+    .attention-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .attention-bar-bg {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .att-seq { background: var(--accent); transition: width 0.5s; }
+    .att-cls { background: var(--orange); transition: width 0.5s; }
+    .attention-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .leg-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 2px;
+      margin-right: 4px;
+    }
+
+    /* Demo examples */
+    .demo-examples {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .example-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+      background: transparent;
+    }
+
+    .example-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── About section ───────────────────────────────────────────────── */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .about-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .about-card h3 {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .about-card p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .tech-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--muted);
+    }
+
+    /* ── Loading spinner ─────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 32px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      main { padding: 80px 20px 60px; }
+      nav  { padding: 0 20px; }
+      .nav-links { display: none; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .about-grid  { grid-template-columns: 1fr; }
+      .result-grid { grid-template-columns: 1fr 1fr; }
+      .hero-stats  { gap: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-logo">🛡️ PhishGuard<span>/AI</span></div>
+  <ul class="nav-links">
+    <li><a href="#results" class="active">Results</a></li>
+    <li><a href="#demo">Live Demo</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="https://github.com/binhpham-2002" target="_blank">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<main>
+
+  <!-- Hero -->
+  <section class="hero" id="top">
+    <div class="hero-tag">✦ SJSU Master's Project — TECH 295A</div>
+    <h1>Hybrid Deep Learning<br>for <span class="highlight">Phishing Detection</span></h1>
+    <p>A hybrid DANN+Classical model combining domain adversarial neural networks with engineered URL features for robust cross-source phishing detection.</p>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-value green">94.0%</span>
+        <span class="stat-label">In-distribution accuracy</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value accent">75.3%</span>
+        <span class="stat-label">Cross-generation accuracy</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">13</span>
+        <span class="stat-label">Models evaluated</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">305K</span>
+        <span class="stat-label">Training URLs</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results section -->
+  <section class="section" id="results">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Model Comparison</h2>
+      <p>All 13 models ranked by weighted score (0.40×D4 + 0.20×D6 + 0.20×D7 + 0.20×In-Dist)</p>
+    </div>
+
+    <div class="card" style="margin-bottom:24px; overflow-x:auto;">
+      <table class="model-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>In-Dist</th>
+            <th>D4</th>
+            <th>D6</th>
+            <th>D7</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="modelTableBody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-wrap">
+        <div class="chart-title">Cross-Source Accuracy — Top 8 Models</div>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">Radar — Top 5 Models</div>
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Research story cards -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:24px;">
+      <div class="card">
+        <div class="card-title">Distribution Shift</div>
+        <div style="font-family:var(--mono); font-size:32px; font-weight:700; color:var(--red); margin-bottom:8px;">28.85%</div>
+        <div style="font-size:13px; color:var(--muted);">Average accuracy gap between in-distribution and cross-source evaluation. Confirmed across 6 independent datasets (p=0.001, Cohen's d=2.95).</div>
+      </div>
+      <div class="card">
+        <div class="card-title">DANN Improvement</div>
+        <div style="font-family:var(--mono); font-size:32px; font-weight:700; color:var(--green); margin-bottom:8px;">+2.61%</div>
+        <div style="font-size:13px; color:var(--muted);">Cross-source accuracy gain from domain adversarial training over ablation baseline. Gradient Reversal Layer forces source-invariant URL representations.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">DL vs Classical</div>
+        <div style="font-family:var(--mono); font-size:32px; font-weight:700; color:var(--accent); margin-bottom:8px;">+6.2%</div>
+        <div style="font-size:13px; color:var(--muted);">Deep learning improvement over XGBoost on D4 cross-generation accuracy. Raw URL sequences contain signal that engineered features miss.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Demo section -->
+  <section class="section" id="demo">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Live Demo</h2>
+      <p>Requires PhishGuard server running on localhost:8000</p>
+    </div>
+
+    <div class="card">
+      <!-- Server status -->
+      <div class="server-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Checking server...</span>
+      </div>
+
+      <!-- Example chips -->
+      <div class="demo-examples">
+        <span style="font-size:11px; color:var(--muted); margin-right:4px;">Try:</span>
+        <button class="example-chip" onclick="setExample('http://login-paypal-secure.suspicious-domain.tk/verify/account')">⚠ phishing</button>
+        <button class="example-chip" onclick="setExample('https://www.bbc.com/news/technology')">✓ news</button>
+        <button class="example-chip" onclick="setExample('http://192.168.1.1/admin/login.php')">⚠ private IP</button>
+        <button class="example-chip" onclick="setExample('https://github.com/microsoft/vscode')">✓ github</button>
+        <button class="example-chip" onclick="setExample('http://free-crack-software.xyz/setup.exe')">⚠ malware</button>
+        <button class="example-chip" onclick="setExample('https://www.stanford.edu/admissions')">✓ .edu</button>
+      </div>
+
+      <!-- Input -->
+      <div class="demo-input-wrap">
+        <input
+          type="text"
+          class="demo-input"
+          id="urlInput"
+          placeholder="https://enter-any-url.com"
+          onkeydown="if(event.key==='Enter') scanURL()"
+        >
+        <button class="demo-btn" id="scanBtn" onclick="scanURL()">Scan →</button>
+      </div>
+
+      <!-- Result -->
+      <div class="demo-result" id="demoResult"></div>
+    </div>
+  </section>
+
+  <!-- About section -->
+  <section class="section" id="about">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>About This Project</h2>
+    </div>
+
+    <div class="about-grid">
+      <div class="about-card">
+        <h3>Research Question</h3>
+        <p>What combination of training data, model architecture, tokenization strategy, and training methodology produces a phishing URL detector that generalizes reliably across different sources, time periods, and adversarial conditions?</p>
+      </div>
+      <div class="about-card">
+        <h3>Methodology</h3>
+        <p>8 experimental notebooks covering data preparation, classical ML baselines, LOSO distribution shift analysis, training data sensitivity, 6 deep learning architectures, domain adversarial training (DANN), and hybrid model fusion.</p>
+      </div>
+      <div class="about-card">
+        <h3>Author</h3>
+        <p>Binh Duc Pham<br>San José State University<br>TECH 295A — Master's Project<br><br>Committee: Dr. Armin Moghadam, Dr. Riti Gour, Prof. Bao Nguyen</p>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="about-card">
+        <h3>Tech Stack</h3>
+        <div class="tech-tags">
+          <span class="tech-tag">PyTorch</span>
+          <span class="tech-tag">DANN</span>
+          <span class="tech-tag">GRU</span>
+          <span class="tech-tag">BPE Tokenizer</span>
+          <span class="tech-tag">XGBoost</span>
+          <span class="tech-tag">LightGBM</span>
+          <span class="tech-tag">SHAP</span>
+          <span class="tech-tag">FastAPI</span>
+          <span class="tech-tag">Chrome Extension MV3</span>
+          <span class="tech-tag">scikit-learn</span>
+          <span class="tech-tag">Google Colab A100</span>
+          <span class="tech-tag">305K URLs</span>
+          <span class="tech-tag">4 Datasets</span>
+          <span class="tech-tag">39 Features</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>PhishGuard AI — SJSU TECH 295A — Binh Duc Pham</span>
+  <span><a href="https://github.com/binhpham-2002" target="_blank">github.com/binhpham-2002</a></span>
+</footer>
+
+<script>
+// ── Model data ────────────────────────────────────────────────────────
+const MODELS = [
+  { name:'Hybrid DANN+Classical', cat:'hybrid',    indist:0.9400, d4:0.7528, d6:0.7495, d7:0.7742, score:0.7939 },
+  { name:'Hybrid GRU+Classical',  cat:'hybrid',    indist:0.9388, d4:0.7506, d6:0.7502, d7:0.7772, score:0.7935 },
+  { name:'GRU(BPE)',               cat:'dl',        indist:0.9384, d4:0.7395, d6:0.7425, d7:0.8044, score:0.7929 },
+  { name:'BiLSTM(char)',           cat:'dl',        indist:0.9397, d4:0.7460, d6:0.7475, d7:0.7724, score:0.7903 },
+  { name:'DANN',                   cat:'dann',      indist:0.9401, d4:0.7504, d6:0.7487, d7:0.7605, score:0.7900 },
+  { name:'CharCNN',                cat:'dl',        indist:0.9409, d4:0.7416, d6:0.7398, d7:0.7644, score:0.7857 },
+  { name:'BiLSTM(BPE)',            cat:'dl',        indist:0.9386, d4:0.7282, d6:0.7215, d7:0.7910, score:0.7815 },
+  { name:'Hybrid BiLSTM+Classical',cat:'hybrid',   indist:0.9149, d4:0.6559, d6:0.6587, d7:0.7991, score:0.7369 },
+  { name:'Transformer(BPE)',       cat:'dl',        indist:0.9385, d4:0.7027, d6:0.7033, d7:0.7241, score:0.7543 },
+  { name:'Transformer(char)',      cat:'dl',        indist:0.9239, d4:0.6384, d6:0.6442, d7:0.6349, score:0.6960 },
+  { name:'XGBoost',                cat:'classical', indist:0.9142, d4:0.6911, d6:null,   d7:null,   score:0.4593 },
+  { name:'LightGBM',               cat:'classical', indist:0.9127, d4:0.6906, d6:null,   d7:null,   score:0.4588 },
+  { name:'Logistic Regression',    cat:'classical', indist:0.8118, d4:0.4783, d6:null,   d7:null,   score:0.3537 },
+];
+
+const CAT_BADGE = {
+  classical: ['badge-classical','CLASSICAL'],
+  dl:        ['badge-dl','DEEP LEARNING'],
+  dann:      ['badge-dann','DANN'],
+  hybrid:    ['badge-hybrid','HYBRID'],
+};
+
+// ── Populate table ────────────────────────────────────────────────────
+const tbody = document.getElementById('modelTableBody');
+MODELS.forEach((m, i) => {
+  const [cls, label] = CAT_BADGE[m.cat];
+  const isChamp = i === 0;
+  const row = document.createElement('tr');
+  if (isChamp) row.classList.add('champion');
+  row.innerHTML = `
+    <td>${m.name}<span class="badge ${cls}">${label}</span></td>
+    <td>${m.indist.toFixed(4)}</td>
+    <td>${m.d4.toFixed(4)}</td>
+    <td>${m.d6 != null ? m.d6.toFixed(4) : '<span class="na-cell">—</span>'}</td>
+    <td>${m.d7 != null ? m.d7.toFixed(4) : '<span class="na-cell">—</span>'}</td>
+    <td class="score-cell">${m.score.toFixed(4)}</td>
+  `;
+  tbody.appendChild(row);
+});
+
+// ── Bar chart ─────────────────────────────────────────────────────────
+const top8 = MODELS.filter(m => m.d6 != null).slice(0, 8);
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+  type: 'bar',
+  data: {
+    labels: top8.map(m => m.name.replace('(BPE)','').replace('(char)','')),
+    datasets: [
+      {
+        label: 'D4 (Future phishing)',
+        data: top8.map(m => m.d4),
+        backgroundColor: 'rgba(88,166,255,0.7)',
+        borderRadius: 3,
+      },
+      {
+        label: 'D6',
+        data: top8.map(m => m.d6),
+        backgroundColor: 'rgba(63,185,80,0.7)',
+        borderRadius: 3,
+      },
+      {
+        label: 'D7',
+        data: top8.map(m => m.d7),
+        backgroundColor: 'rgba(188,140,255,0.7)',
+        borderRadius: 3,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#8B949E', font: { size: 11 } } }
+    },
+    scales: {
+      x: { ticks: { color: '#8B949E', font: { size: 10 } }, grid: { color: '#21262D' } },
+      y: { ticks: { color: '#8B949E', font: { size: 10 } }, grid: { color: '#21262D' }, min: 0.65, max: 0.85 }
+    }
+  }
+});
+
+// ── Radar chart ───────────────────────────────────────────────────────
+const top5     = MODELS.slice(0, 5);
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+const RCOLORS  = ['#58A6FF','#3FB950','#D29922','#BC8CFF','#F85149'];
+
+new Chart(radarCtx, {
+  type: 'radar',
+  data: {
+    labels: ['In-Dist','D4','D6','D7','Score'],
+    datasets: top5.map((m, i) => ({
+      label: m.name.split('(')[0].trim(),
+      data: [m.indist, m.d4, m.d6||0, m.d7||0, m.score],
+      borderColor: RCOLORS[i],
+      backgroundColor: RCOLORS[i] + '18',
+      pointBackgroundColor: RCOLORS[i],
+      borderWidth: 2,
+      pointRadius: 3,
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#8B949E', font: { size: 10 } } }
+    },
+    scales: {
+      r: {
+        min: 0.7, max: 1.0,
+        ticks: { color: '#8B949E', font: { size: 9 }, stepSize: 0.1 },
+        grid:  { color: '#21262D' },
+        pointLabels: { color: '#8B949E', font: { size: 11 } },
+        angleLines: { color: '#21262D' }
+      }
+    }
+  }
+});
+
+// ── Server status check ───────────────────────────────────────────────
+const API = 'http://localhost:8000';
+
+async function checkServer() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2000) });
+    if (r.ok) {
+      document.getElementById('statusDot').className  = 'status-dot online';
+      document.getElementById('statusText').textContent = 'Server online — ready to scan';
+      return true;
+    }
+  } catch {}
+  document.getElementById('statusDot').className  = 'status-dot offline';
+  document.getElementById('statusText').innerHTML =
+    'Server offline — run <code style="font-family:var(--mono);color:var(--accent)">python3 main.py</code> in MSET-tech-pack';
+  return false;
+}
+
+checkServer();
+setInterval(checkServer, 10000);
+
+// ── Example chips ─────────────────────────────────────────────────────
+function setExample(url) {
+  document.getElementById('urlInput').value = url;
+  scanURL();
+}
+
+// ── Scan function ─────────────────────────────────────────────────────
+async function scanURL() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  const btn    = document.getElementById('scanBtn');
+  const result = document.getElementById('demoResult');
+
+  btn.disabled    = true;
+  btn.innerHTML   = '<span class="spinner"></span>Scanning...';
+  result.className = 'demo-result visible';
+  result.innerHTML = `
+    <div class="result-header">
+      <span class="result-verdict">Analyzing...</span>
+    </div>
+    <div class="result-body" style="color:var(--muted); font-size:13px; padding:20px;">
+      <span class="spinner"></span> Running AI analysis...
+    </div>
+  `;
+
+  try {
+    const res  = await fetch(`${API}/predict/detailed`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ url }),
+    });
+
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+    renderResult(data);
+
+  } catch (e) {
+    result.innerHTML = `
+      <div class="result-header">
+        <span class="result-verdict high">Server Offline</span>
+      </div>
+      <div class="result-body" style="color:var(--muted); font-size:13px;">
+        Start the server: <code style="font-family:var(--mono);color:var(--accent)">python3 main.py</code>
+      </div>
+    `;
+  }
+
+  btn.disabled  = false;
+  btn.innerHTML = 'Scan →';
+}
+
+function verdictClass(v) {
+  if (v === 'SAFE')        return 'safe';
+  if (v === 'LOW RISK')    return 'low';
+  if (v === 'MEDIUM RISK') return 'medium';
+  if (v === 'HIGH RISK')   return 'high';
+  return 'safe';
+}
+
+function pct(v) { return Math.round((v || 0) * 100); }
+
+function renderResult(data) {
+  const vc      = verdictClass(data.verdict);
+  const exp     = data.explanation || {};
+  const threats = data.threats    || [];
+  const finalUrl = data.final_url || data.url;
+  const resolved = finalUrl !== data.url;
+
+  const threatHTML = threats.length > 0
+    ? threats.map(t => `
+        <div class="threat-row">
+          <span class="threat-type">${t.type}</span>
+          <span class="threat-note">${t.note} (${pct(t.confidence)}% conf)</span>
+        </div>
+      `).join('')
+    : `<div class="threat-row safe-row">
+         <span class="threat-type" style="color:var(--green)">SAFE</span>
+         <span class="threat-note">No threats detected</span>
+       </div>`;
+
+  const seqPct = pct(exp.attention_seq_weight);
+  const clsPct = pct(exp.attention_cls_weight);
+
+  document.getElementById('demoResult').innerHTML = `
+    <div class="result-header">
+      <span class="result-verdict ${vc}">${data.verdict}</span>
+      <span style="font-size:12px; color:var(--muted);">
+        Risk: <strong style="font-family:var(--mono)">${(data.risk_score * 100).toFixed(1)}%</strong>
+      </span>
+      <span class="result-url" title="${finalUrl}">${finalUrl}</span>
+    </div>
+    <div class="result-body">
+      ${resolved ? `<div style="font-size:11px; color:var(--muted); margin-bottom:12px; font-family:var(--mono);">↪ Resolved from ${data.url}</div>` : ''}
+
+      <div class="risk-bar-wrap">
+        <div class="risk-bar ${vc}" style="width:${pct(data.risk_score)}%"></div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-metric">
+          <div class="label">Phishing Prob</div>
+          <div class="value" style="color:${exp.phishing_probability > 0.5 ? 'var(--red)' : 'var(--green)'}">
+            ${pct(exp.phishing_probability)}%
+          </div>
+        </div>
+        <div class="result-metric">
+          <div class="label">Confidence</div>
+          <div class="value">${pct(exp.confidence)}%</div>
+        </div>
+        <div class="result-metric">
+          <div class="label">Threats Found</div>
+          <div class="value" style="color:${threats.length > 0 ? 'var(--red)' : 'var(--green)'}">
+            ${threats.length}
+          </div>
+        </div>
+      </div>
+
+      <div class="threats-list">${threatHTML}</div>
+
+      ${seqPct + clsPct > 0 ? `
+        <div class="attention-section">
+          <div class="attention-label">MODEL ATTENTION WEIGHTS</div>
+          <div class="attention-bar-bg">
+            <div class="att-seq" style="width:${seqPct}%"></div>
+            <div class="att-cls" style="width:${clsPct}%"></div>
+          </div>
+          <div class="attention-legend">
+            <span><span class="leg-dot" style="background:var(--accent)"></span>Sequence ${seqPct}%</span>
+            <span><span class="leg-dot" style="background:var(--orange)"></span>Classical ${clsPct}%</span>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ── Nav scroll highlight ──────────────────────────────────────────────
+const sections = ['results','demo','about'];
+window.addEventListener('scroll', () => {
+  const y = window.scrollY + 80;
+  sections.forEach(id => {
+    const el  = document.getElementById(id);
+    const link = document.querySelector(`a[href="#${id}"]`);
+    if (!el || !link) return;
+    const active = y >= el.offsetTop && y < el.offsetTop + el.offsetHeight;
+    link.classList.toggle('active', active);
+  });
+});
+</script>
+</body>
+</html>

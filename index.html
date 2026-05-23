@@ -482,7 +482,7 @@
       font-size: 13px;
     }
 
-    .threat-row.safe-row { background: rgba(63,185,80,0.06); border-color: var(--green); }
+    .threat-row.safe-row { background: rgba(139,148,158,0.06); border-color: #30363D; }
 
     .threat-type {
       font-family: var(--mono);
@@ -1059,9 +1059,9 @@ function renderResult(data) {
           <span class="threat-note">${t.note} (${pct(t.confidence)}% conf)</span>
         </div>
       `).join('')
-    : `<div class="threat-row safe-row">
-         <span class="threat-type" style="color:var(--green)">SAFE</span>
-         <span class="threat-note">No threats detected</span>
+    : `<div class="threat-row" style="background:rgba(139,148,158,0.06); border-color:#30363D;">
+         <span class="threat-type" style="color:var(--muted)">NO RULES TRIGGERED</span>
+         <span class="threat-note">ML model suspicion only — no deterministic threat signals found</span>
        </div>`;
 
   const seqPct = pct(exp.attention_seq_weight);

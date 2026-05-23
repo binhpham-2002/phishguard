@@ -1039,6 +1039,19 @@ function renderResult(data) {
   const finalUrl = data.final_url || data.url;
   const resolved = finalUrl !== data.url;
 
+  let extraNote = '';
+  if (data.verdict === 'LOW RISK') {
+      extraNote = `
+          <div style="padding:10px 14px; background:rgba(88,166,255,0.08);
+              border-left:3px solid var(--accent); border-radius:6px;
+              font-size:13px; color:var(--muted); margin-bottom:16px;">
+              ⚠️ <strong style="color:var(--text)">Proceed with caution.</strong>
+              This URL was not confirmed safe. Low confidence detection —
+              verify the domain carefully before entering any credentials.
+          </div>
+      `;
+  }
+
   const threatHTML = threats.length > 0
     ? threats.map(t => `
         <div class="threat-row">
@@ -1088,6 +1101,7 @@ function renderResult(data) {
         </div>
       </div>
 
+      ${extraNote}
       <div class="threats-list">${threatHTML}</div>
 
       ${seqPct + clsPct > 0 ? `
